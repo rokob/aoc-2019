@@ -12,45 +12,85 @@ fn main() {
 
     let mut ip = 0;
     loop {
-        let (new_ip, keep_going) = step(&mut prog, ip);
-        if !keep_going {
+        let (new_ip, halt) = step(&mut prog, ip);
+        if halt {
             break;
         }
         ip = new_ip;
     }
 }
 
-const IN: isize = 1;
+const IN: isize = 5;
 
 fn step(prog: &mut Vec<isize>, ip: usize) -> (usize, bool) {
-    let (inst, a, b, c, d) = parse(prog[ip]);
+    let (inst, a, b, _c, _d) = parse(prog[ip]);
     match inst {
         1 => {
             let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
             let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
             let z = prog[ip + 3] as usize;
             prog[z] = x + y;
-            (ip + 4, true)
+            (ip + 4, false)
         },
         2 => {
             let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
             let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
             let z = prog[ip + 3] as usize;
             prog[z] = x * y;
-            (ip + 4, true)
+            (ip + 4, false)
         },
         3 => {
             let z = prog[ip + 1] as usize;
             prog[z] = IN;
-            (ip + 2, true)
+            (ip + 2, false)
         },
         4 => {
             let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
             println!("{}", x);
-            (ip + 2, true)
+            (ip + 2, false)
+        },
+        5 => {
+            let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
+            let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
+            if x != 0 {
+                (y as usize, false)
+            } else {
+                (ip + 3, false)
+            }
+        }
+        6 => {
+            let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
+            let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
+            if x == 0 {
+                (y as usize, false)
+            } else {
+                (ip + 3, false)
+            }
+        }
+        7 => {
+            let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
+            let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
+            let z = prog[ip + 3] as usize;
+            if x < y {
+                prog[z] = 1;
+            } else {
+                prog[z] = 0;
+            }
+            (ip + 4, false)
+        },
+        8 => {
+            let x = if a == 0 { prog[prog[ip + 1] as usize] } else { prog[ip + 1] };
+            let y = if b == 0 { prog[prog[ip + 2] as usize] } else { prog[ip + 2] };
+            let z = prog[ip + 3] as usize;
+            if x == y {
+                prog[z] = 1;
+            } else {
+                prog[z] = 0;
+            }
+            (ip + 4, false)
         },
         99 => {
-            (ip, false)
+            (ip, true)
         },
         _ => panic!("unk::{}", inst),
     }
