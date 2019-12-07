@@ -52,35 +52,20 @@ fn run_with_phases(prog: Vec<isize>, phases: [usize; 5]) -> isize {
     ];
     let mut idx = 0;
     let mut input = 0;
-    let mut output_from_e = 0;
-    let mut input_for_this = false;
     loop {
         let in_ = if amps[idx].2 {
             phases[idx] as isize
         } else {
             input
         };
-        let in_ = if input_for_this { None } else { Some(in_) };
         let ip = amps[idx].1;
-        let (new_ip, halt, did_input, output, needs_input) = step(&mut amps[idx].0, ip, in_);
-        if did_input {
-            if amps[idx].2 {
-                amps[idx].2 = false;
-            } else {
-                input_for_this = true;
-            }
+        let (new_ip, halt, did_input, output) = step(&mut amps[idx].0, ip, in_);
+        if did_input && amps[idx].2 {
+            amps[idx].2 = false;
         }
         amps[idx].1 = new_ip;
-        if needs_input {
-            idx = (idx + 1) % 5;
-            input_for_this = false;
-        }
         if let Some(out) = output {
             input = out;
-            if idx == 4 {
-                output_from_e = out;
-            }
-            input_for_this = false;
             idx = (idx + 1) % 5;
         }
         if halt {
@@ -90,14 +75,10 @@ fn run_with_phases(prog: Vec<isize>, phases: [usize; 5]) -> isize {
             idx = (idx + 1) % 5;
         }
     }
-    output_from_e
+    input
 }
 
-fn step(
-    prog: &mut Vec<isize>,
-    ip: usize,
-    in_: Option<isize>,
-) -> (usize, bool, bool, Option<isize>, bool) {
+fn step(prog: &mut Vec<isize>, ip: usize, in_: isize) -> (usize, bool, bool, Option<isize>) {
     let (inst, a, b, _c, _d) = parse(prog[ip]);
     match inst {
         1 => {
@@ -113,7 +94,7 @@ fn step(
             };
             let z = prog[ip + 3] as usize;
             prog[z] = x + y;
-            (ip + 4, false, false, None, false)
+            (ip + 4, false, false, None)
         }
         2 => {
             let x = if a == 0 {
@@ -128,16 +109,12 @@ fn step(
             };
             let z = prog[ip + 3] as usize;
             prog[z] = x * y;
-            (ip + 4, false, false, None, false)
+            (ip + 4, false, false, None)
         }
         3 => {
-            if let Some(in_) = in_ {
-                let z = prog[ip + 1] as usize;
-                prog[z] = in_;
-                (ip + 2, false, true, None, false)
-            } else {
-                (ip, false, false, None, true)
-            }
+            let z = prog[ip + 1] as usize;
+            prog[z] = in_;
+            (ip + 2, false, true, None)
         }
         4 => {
             let x = if a == 0 {
@@ -145,7 +122,7 @@ fn step(
             } else {
                 prog[ip + 1]
             };
-            (ip + 2, false, false, Some(x), false)
+            (ip + 2, false, false, Some(x))
         }
         5 => {
             let x = if a == 0 {
@@ -159,9 +136,9 @@ fn step(
                 prog[ip + 2]
             };
             if x != 0 {
-                (y as usize, false, false, None, false)
+                (y as usize, false, false, None)
             } else {
-                (ip + 3, false, false, None, false)
+                (ip + 3, false, false, None)
             }
         }
         6 => {
@@ -176,9 +153,9 @@ fn step(
                 prog[ip + 2]
             };
             if x == 0 {
-                (y as usize, false, false, None, false)
+                (y as usize, false, false, None)
             } else {
-                (ip + 3, false, false, None, false)
+                (ip + 3, false, false, None)
             }
         }
         7 => {
@@ -198,7 +175,7 @@ fn step(
             } else {
                 prog[z] = 0;
             }
-            (ip + 4, false, false, None, false)
+            (ip + 4, false, false, None)
         }
         8 => {
             let x = if a == 0 {
@@ -217,9 +194,9 @@ fn step(
             } else {
                 prog[z] = 0;
             }
-            (ip + 4, false, false, None, false)
+            (ip + 4, false, false, None)
         }
-        99 => (ip, true, false, None, false),
+        99 => (ip, true, false, None),
         _ => panic!("unk::{}", inst),
     }
 }
