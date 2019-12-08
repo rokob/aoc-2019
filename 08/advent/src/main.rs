@@ -25,6 +25,34 @@ fn main() {
         }
     }
     println!("{}", result);
+
+    let image = find_image(&data, layers);
+    for r in 0..H {
+        for c in 0..W {
+            let v = image[r*W + c];
+            if v == 1 {
+                print!(" * ");
+            } else {
+                print!("   ");
+            }
+        }
+        println!("");
+    }
+}
+
+fn find_image(data: &Vec<usize>, layers: usize) -> [usize; W*H] {
+    let mut result = [2; W*H];
+    for i in 0..W*H {
+        for layer in 0..layers {
+            let v = data[(W*H)*layer + i];
+            if v == 2 {
+                continue;
+            }
+            result[i] = v;
+            break;
+        }
+    }
+    result
 }
 
 fn count(data: &Vec<usize>, layer: usize) -> (usize, usize, usize) {
