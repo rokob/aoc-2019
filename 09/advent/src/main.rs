@@ -10,12 +10,12 @@ fn main() {
         }
     }
 
-    let in_ = 1;
+    let in_ = 2;
 
     let mut ip = 0;
     let mut rb = 0;
     loop {
-        let (new_ip, did_halt, did_input, output, new_rb) = step(&mut prog, ip, in_, rb);
+        let (new_ip, did_halt, _did_input, output, new_rb) = step(&mut prog, ip, in_, rb);
         if did_halt {
             break;
         }
