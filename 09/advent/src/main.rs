@@ -27,6 +27,7 @@ fn main() {
     }
 }
 
+#[inline]
 fn maybe_extend(prog: &mut Vec<isize>, idx: usize) {
     if idx < prog.len() {
         return;
@@ -34,124 +35,60 @@ fn maybe_extend(prog: &mut Vec<isize>, idx: usize) {
     prog.resize(prog.len() * 2, 0);
 }
 
-fn step(prog: &mut Vec<isize>, ip: usize, in_: isize, rb: isize) -> (usize, bool, bool, Option<isize>, isize) {
-    let (inst, a, b, c, _d) = parse(prog[ip]);
+#[inline]
+fn index(prog: &mut Vec<isize>, ip: usize, rb: isize, mode: isize, offset: usize) -> usize {
+    if mode == 0 {
+        let i = prog[ip + offset] as usize;
+        maybe_extend(prog, i as usize);
+        i
+    } else if mode == 2 {
+        let i = (rb + prog[ip + offset]) as usize;
+        maybe_extend(prog, i as usize);
+        i
+    } else {
+        ip + offset
+    }
+}
+
+#[inline]
+fn read(prog: &mut Vec<isize>, ip: usize, rb: isize, mode: isize, offset: usize) -> isize {
+    let i = index(prog, ip, rb, mode, offset);
+    prog[i]
+}
+
+// (new_ip, did_halt, _did_input, output, new_rb)
+fn step(
+    prog: &mut Vec<isize>,
+    ip: usize,
+    in_: isize,
+    rb: isize,
+) -> (usize, bool, bool, Option<isize>, isize) {
+    let (inst, a, b, c) = parse(prog[ip]);
+    if inst == 99 {
+        return (ip, true, false, None, rb);
+    }
+    let xi = index(prog, ip, rb, a, 1);
+    let x = prog[xi];
     match inst {
         1 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else {
-                prog[ip + 2]
-            };
-            let z = if c == 0 {
-                prog[ip + 3] as usize
-            } else {
-                (rb + prog[ip + 3]) as usize
-            };
-            maybe_extend(prog, z);
+            let y = read(prog, ip, rb, b, 2);
+            let z = index(prog, ip, rb, c, 3);
             prog[z] = x + y;
             (ip + 4, false, false, None, rb)
         }
         2 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else {
-                prog[ip + 2]
-            };
-            let z = if c == 0 {
-                prog[ip + 3] as usize
-            } else {
-                (rb + prog[ip + 3]) as usize
-            };
-            maybe_extend(prog, z as usize);
+            let y = read(prog, ip, rb, b, 2);
+            let z = index(prog, ip, rb, c, 3);
             prog[z] = x * y;
             (ip + 4, false, false, None, rb)
         }
         3 => {
-            let z = if a == 0 {
-                prog[ip + 1] as usize
-            } else {
-                (rb + prog[ip + 1]) as usize
-            };
-            maybe_extend(prog, z as usize);
-            prog[z] = in_;
+            prog[xi] = in_;
             (ip + 2, false, true, None, rb)
         }
-        4 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-            maybe_extend(prog, i as usize);
-            prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            (ip + 2, false, false, Some(x), rb)
-        }
+        4 => (ip + 2, false, false, Some(x), rb),
         5 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 2]
-            };
+            let y = read(prog, ip, rb, b, 2);
             if x != 0 {
                 (y as usize, false, false, None, rb)
             } else {
@@ -159,126 +96,29 @@ fn step(prog: &mut Vec<isize>, ip: usize, in_: isize, rb: isize) -> (usize, bool
             }
         }
         6 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 2]
-            };
+            let y = read(prog, ip, rb, b, 2);
             if x == 0 {
                 (y as usize, false, false, None, rb)
             } else {
                 (ip + 3, false, false, None, rb)
             }
         }
-        7 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 2]
-            };
-            let z = if c == 0 {
-                prog[ip + 3] as usize
-            } else {
-                (rb + prog[ip + 3]) as usize
-            };
-            maybe_extend(prog, z);
-            if x < y {
+        7 | 8 => {
+            let y = read(prog, ip, rb, b, 2);
+            let z = index(prog, ip, rb, c, 3);
+            if (x < y && inst == 7) || (x == y && inst == 8) {
                 prog[z] = 1;
             } else {
                 prog[z] = 0;
             }
             (ip + 4, false, false, None, rb)
         }
-        8 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            let y = if b == 0 {
-                let i = prog[ip + 2] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if b == 2 {
-                let i = (rb + prog[ip + 2]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 2]
-            };
-            let z = if c == 0 {
-                prog[ip + 3] as usize
-            } else {
-                (rb + prog[ip + 3]) as usize
-            };
-                maybe_extend(prog, z);
-            if x == y {
-                prog[z] = 1;
-            } else {
-                prog[z] = 0;
-            }
-            (ip + 4, false, false, None, rb)
-        }
-        9 => {
-            let x = if a == 0 {
-                let i = prog[ip + 1] as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else if a == 2 {
-                let i = (rb + prog[ip + 1]) as usize;
-                maybe_extend(prog, i);
-                prog[i]
-            } else {
-                prog[ip + 1]
-            };
-            (ip + 2, false, false, None, rb + x)
-        }
-        99 => (ip, true, false, None, rb),
+        9 => (ip + 2, false, false, None, rb + x),
         _ => panic!("unk::{}", inst),
     }
 }
 
-fn parse(mut inst: isize) -> (isize, isize, isize, isize, isize) {
+fn parse(mut inst: isize) -> (isize, isize, isize, isize) {
     let x = inst % 100;
     inst /= 100;
     let a = inst % 10;
@@ -286,7 +126,5 @@ fn parse(mut inst: isize) -> (isize, isize, isize, isize, isize) {
     let b = inst % 10;
     inst /= 10;
     let c = inst % 10;
-    inst /= 10;
-    let d = inst % 10;
-    (x, a, b, c, d)
+    (x, a, b, c)
 }
