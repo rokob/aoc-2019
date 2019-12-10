@@ -16,19 +16,61 @@ fn main() {
         grid.push(row);
     }
 
-    let mut counts = grid.clone();
     let mut best = 0;
+    let mut bestr = 0;
+    let mut bestc = 0;
     for r in 0..grid.len() {
         for c in 0..grid[0].len() {
             if grid[r][c] == 1 {
-                counts[r][c] = count_visible(&grid, r, c);
-            }
-            if counts[r][c] > best {
-                best = counts[r][c];
+                let count = count_visible(&grid, r, c);
+                if count > best {
+                    best = count;
+                    bestr = r;
+                    bestc = c;
+                }
             }
         }
     }
-    println!("{}", best);
+    println!("{} @ ({}, {})", best, bestc, bestr);
+    let mut coords = vec![];
+    for r in 0..grid.len() {
+        for c in 0..grid[0].len() {
+            if r == bestr && c == bestc {
+                continue;
+            }
+            if grid[r][c] == 1 && is_visible(&grid, bestr, bestc, r, c) {
+                coords.push((c, r));
+            }
+        }
+    }
+
+    let mut count = 0;
+    let mut quad4 = vec![];
+    for coord in coords.iter() {
+        if coord.0 >= bestc || coord.1 >= bestr {
+            count += 1;
+        } else {
+            quad4.push(coord);
+        }
+    }
+    println!("other count = {}", count);
+    println!("quad4 count = {}", quad4.len());
+    println!("{} =?= {}", count + quad4.len(), best);
+
+    let mut angles = vec![];
+    for coord in quad4.iter() {
+        let dx = coord.0 as f64 - bestc as f64;
+        let dy = coord.1 as f64 - bestr as f64;
+        angles.push((dy.atan2(dx), coord.0, coord.1));
+    }
+    angles.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    for (_, c, r) in angles {
+        count += 1;
+        if count == 200 {
+            println!("({}, {}) => result = {}", c, r, c*100 + r);
+            break;
+        }
+    }
 }
 
 fn count_visible(grid: &Vec<Vec<u32>>, r: usize, c: usize) -> u32 {
