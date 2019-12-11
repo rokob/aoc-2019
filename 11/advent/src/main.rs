@@ -1,6 +1,41 @@
 #[allow(unused_imports)]
 use std::collections::{HashMap, HashSet};
 
+#[derive(Debug)]
+enum Dir {
+    Up,
+    Left,
+    Right,
+    Down,
+}
+
+impl Dir {
+    fn turn(&self, val: isize) -> Dir {
+        use Dir::*;
+        match (self, val) {
+            (Up, 0) => Left,
+            (Up, 1) => Right,
+            (Left, 0) => Down,
+            (Left, 1) => Up,
+            (Right, 0) => Up,
+            (Right, 1) => Down,
+            (Down, 0) => Right,
+            (Down, 1) => Left,
+            _ => panic!("bad turn"),
+        }
+    }
+
+    fn move_(&self, pos: (isize, isize)) -> (isize, isize) {
+        use Dir::*;
+        match self {
+            Up => (pos.0, pos.1 - 1),
+            Down => (pos.0, pos.1 + 1),
+            Left => (pos.0 - 1, pos.1),
+            Right => (pos.0 + 1, pos.1),
+        }
+    }
+}
+
 fn main() {
     let input = include_str!("../input.txt");
     let mut prog = Vec::new();
@@ -10,20 +45,69 @@ fn main() {
         }
     }
 
-    let in_ = 2;
-
+    let mut pos = (0, 0);
+    let mut painted: HashSet<(isize, isize)> = HashSet::new();
+    let mut white: HashSet<(isize, isize)> = HashSet::new();
+    white.insert(pos);
     let mut ip = 0;
     let mut rb = 0;
+    let mut first_output = true;
+    let mut dir = Dir::Up;
     loop {
-        let (new_ip, did_halt, _did_input, output, new_rb) = step(&mut prog, ip, in_, rb);
+        let in_ = if white.contains(&pos) { 1 } else { 0 };
+        let (new_ip, did_halt, did_input, output, new_rb) = step(&mut prog, ip, in_, rb);
         if did_halt {
             break;
         }
+        if did_input && !first_output {
+            panic!("bad fuzz {:?}", pos);
+        }
         if let Some(output) = output {
-            println!("output: {}", output);
+            if first_output {
+                if output == 1 {
+                    white.insert(pos);
+                } else {
+                    white.remove(&pos);
+                }
+                painted.insert(pos);
+            } else {
+                dir = dir.turn(output);
+                pos = dir.move_(pos);
+            }
+            first_output = !first_output;
         }
         ip = new_ip;
         rb = new_rb;
+    }
+    println!("{}", painted.len());
+
+    let mut min_x = 0;
+    let mut min_y = 0;
+    let mut max_x = 0;
+    let mut max_y = 0;
+    for panel in white.iter() {
+        if panel.0 > max_x {
+            max_x = panel.0;
+        }
+        if panel.1 > max_y {
+            max_y = panel.1;
+        }
+        if panel.0 < min_x {
+            min_x = panel.0;
+        }
+        if panel.1 < min_y {
+            min_y = panel.1;
+        }
+    }
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            if white.contains(&(x, y)) {
+                print!("##");
+            } else {
+                print!("  ");
+            }
+        }
+        println!("");
     }
 }
 
