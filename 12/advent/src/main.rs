@@ -1,86 +1,133 @@
 #[allow(unused_imports)]
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Moon {
-    pos: (isize, isize, isize),
-    vel: (isize, isize, isize),
+    x: isize,
+    y: isize,
+    z: isize,
+    vx: isize,
+    vy: isize,
+    vz: isize,
 }
 
 impl Moon {
     fn new(x: isize, y: isize, z: isize) -> Self {
         Moon {
-            pos: (x, y, z),
-            vel: (0, 0, 0),
+            x,
+            y,
+            z,
+            vx: 0,
+            vy: 0,
+            vz: 0,
         }
     }
 
-    fn total_energy(&self) -> isize {
-        let pe = self.pos.0.abs() + 
-        self.pos.1.abs() + 
-        self.pos.2.abs();
-        let ke = self.vel.0.abs() + 
-        self.vel.1.abs() + 
-        self.vel.2.abs();
+    fn apply_gravity(&mut self, other: &mut Moon) {
+        if self.x < other.x {
+            self.vx += 1;
+            other.vx -= 1;
+        } else if self.x > other.x {
+            self.vx -= 1;
+            other.vx += 1;
+        }
 
-        pe * ke
-    }
+        if self.y < other.y {
+            self.vy += 1;
+            other.vy -= 1;
+        } else if self.y > other.y {
+            self.vy -= 1;
+            other.vy += 1;
+        }
 
-    fn apply_gravity(&mut self, others: &[Moon]) {
-        for other in others.iter() {
-            if self.pos.0 < other.pos.0 {
-                self.vel.0 += 1;
-            }
-            if self.pos.0 > other.pos.0 {
-                self.vel.0 -= 1;
-            }
-            if self.pos.1 < other.pos.1 {
-                self.vel.1 += 1;
-            }
-            if self.pos.1 > other.pos.1 {
-                self.vel.1 -= 1;
-            }
-            if self.pos.2 < other.pos.2 {
-                self.vel.2 += 1;
-            }
-            if self.pos.2 > other.pos.2 {
-                self.vel.2 -= 1;
-            }
+        if self.z < other.z {
+            self.vz += 1;
+            other.vz -= 1;
+        } else if self.z > other.z {
+            self.vz -= 1;
+            other.vz += 1;
         }
     }
 
+    #[inline]
     fn apply_velocity(&mut self) {
-        self.pos.0 += self.vel.0;
-        self.pos.1 += self.vel.1;
-        self.pos.2 += self.vel.2;
+        self.x += self.vx;
+        self.y += self.vy;
+        self.z += self.vz;
     }
 }
 
-const N: usize = 1000;
+fn lcm(a: usize, b: usize, c: usize) -> usize {
+    let top = a * b * c;
+    let x1 = a * b;
+    let x2 = b * c;
+    let x3 = a * c;
+    let gcd1 = gcd(x1, x2);
+    let bottom = gcd(gcd1, x3);
+    top / bottom
+}
+
+fn gcd(a: usize, b: usize) -> usize {
+    if a > b {
+        return gcd(b, a - b);
+    }
+    if b > a {
+        return gcd(a, b - a);
+    }
+    return a;
+}
 
 fn main() {
-/*
-<x=-1, y=-4, z=0>
-<x=4, y=7, z=-1>
-<x=-14, y=-10, z=9>
-<x=1, y=2, z=17>
-*/
-    let mut a = Moon::new(-1,-4,0);
-    let mut b = Moon::new(4, 7, -1);
-    let mut c = Moon::new(-14,-10,9);
-    let mut d = Moon::new(1, 2, 17);
+    /*
+    <x=-1, y=-4, z=0>
+    <x=4, y=7, z=-1>
+    <x=-14, y=-10, z=9>
+    <x=1, y=2, z=17>
+    */
+    let a = Moon::new(-1, -4, 0);
+    let b = Moon::new(4, 7, -1);
+    let c = Moon::new(-14, -10, 9);
+    let d = Moon::new(1, 2, 17);
 
-    for _ in 0..N {
-        a.apply_gravity(&[b,c,d]);
-        b.apply_gravity(&[a,c,d]);
-        c.apply_gravity(&[a,b,d]);
-        d.apply_gravity(&[a,b,c]);
+    let x_period = find_period(a.clone(), b.clone(), c.clone(), d.clone(), Dimension::X);
+    let y_period = find_period(a.clone(), b.clone(), c.clone(), d.clone(), Dimension::Y);
+    let z_period = find_period(a.clone(), b.clone(), c.clone(), d.clone(), Dimension::Z);
+
+    println!("{}, {}, {}", x_period, y_period, z_period);
+    println!("{}", lcm(x_period, y_period, z_period));
+}
+
+enum Dimension {
+    X,
+    Y,
+    Z,
+}
+
+fn find_period(mut a: Moon, mut b: Moon, mut c: Moon, mut d: Moon, dimension: Dimension) -> usize {
+    let mut seen = HashSet::new();
+    let mut counter = 0;
+    loop {
+        let key = match dimension {
+            Dimension::X => (a.x, a.vx, b.x, b.vx, c.x, c.vx, d.x, d.vx),
+            Dimension::Y => (a.y, a.vy, b.y, b.vy, c.y, c.vy, d.y, d.vy),
+            Dimension::Z => (a.z, a.vz, b.z, b.vz, c.z, c.vz, d.z, d.vz),
+        };
+        if !seen.insert(key) {
+            break;
+        }
+        counter += 1;
+
+        a.apply_gravity(&mut b);
+        a.apply_gravity(&mut c);
+        a.apply_gravity(&mut d);
+        b.apply_gravity(&mut c);
+        b.apply_gravity(&mut d);
+        c.apply_gravity(&mut d);
+
         a.apply_velocity();
         b.apply_velocity();
         c.apply_velocity();
         d.apply_velocity();
     }
-
-    println!("{}", a.total_energy() + b.total_energy() + c.total_energy() + d.total_energy());
-
+    counter
 }
