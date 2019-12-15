@@ -94,10 +94,9 @@ fn main() {
                     }
                     2 => {
                         // moved and found
+                        queue.push_back((0, p, current));
                         tiles.insert(p, Kind::Oxygen);
-                        print_tiles(&tiles, p);
                         found = p;
-                        break;
                     }
                     _ => panic!("bad output: {}", output),
                 }
@@ -108,6 +107,7 @@ fn main() {
             },
         }
     }
+    print_tiles(&tiles, (0, 0));
     let mut counter = 0;
     loop {
         found = *path.get(&found).unwrap();
@@ -117,6 +117,40 @@ fn main() {
         }
     }
     println!("{}", counter);
+
+    let result = flood(&mut tiles);
+    println!("{}", result);
+}
+
+fn flood(
+    tiles: &mut HashMap<(isize, isize), Kind>,
+) -> usize {
+    let mut counter = 0;
+    loop {
+        let mut too_fill = Vec::new();
+        for (pos, kind) in tiles.iter() {
+            if *kind == Kind::Oxygen {
+                let left = (pos.0 - 1, pos.1);
+                let right = (pos.0 + 1, pos.1);
+                let up = (pos.0, pos.1 - 1);
+                let down = (pos.0, pos.1 + 1);
+                for dir in [left, right, up, down].into_iter() {
+                    if let Some(k) = tiles.get(dir) {
+                        if *k == Kind::Empty {
+                            too_fill.push(*dir);
+                        }
+                    }
+                }
+            }
+        }
+        if too_fill.is_empty() {
+            return counter;
+        }
+        counter += 1;
+        for space in too_fill {
+            tiles.insert(space, Kind::Oxygen);
+        }
+    }
 }
 
 #[allow(dead_code)]
