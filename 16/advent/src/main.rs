@@ -23,23 +23,23 @@ fn main() {
     }
 
     for _ in 0..100 {
-        real = run(real);
+        run(&mut real);
     }
     println!("{:?}", &real[(orig_offset - offset)..(orig_offset - offset + 8)]);
 }
 
-fn run(input: Vec<i32>) -> Vec<i32> {
-    let mut result = vec![0; input.len()];
-
-    for n in input.iter() {
-        result[0] += *n;
+fn run(input: &mut Vec<i32>) {
+    let mut last = input[0];
+    for i in 1..input.len() {
+        input[0] += input[i];
     }
 
-    for i in 1..result.len() {
-        result[i] = result[i-1] - input[i-1];
-        result[i-1] = (result[i-1].abs()) % 10;
+    for i in 1..input.len() {
+        let temp = input[i];
+        input[i] = input[i-1] - last;
+        last = temp;
+        input[i-1] = (input[i-1].abs()) % 10;
     }
-    let l = result.len() - 1;
-    result[l] = (result[l].abs()) % 10;
-    result
+    let l = input.len() - 1;
+    input[l] = (input[l].abs()) % 10;
 }
