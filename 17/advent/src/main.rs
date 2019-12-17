@@ -8,6 +8,21 @@ enum State {
     Halt,
 }
 
+/*
+By visual inspection:
+
+R,6,L,12,R,6,
+R,6,L,12,R,6,
+L,12,R,6,L,8,L,12,
+R,12,L,10,L,10,
+L,12,R,6,L,8,L,12,
+R,12,L,10,L,10,
+L,12,R,6,L,8,L,12,
+R,12,L,10,L,10,
+L,12,R,6,L,8,L,12,
+R,6,L,12,R,6
+*/
+
 fn main() {
     let input = include_str!("../input.txt");
     let mut data = Vec::new();
@@ -17,47 +32,43 @@ fn main() {
         }
     }
 
-    let mut grid = HashMap::new();
-    let mut scaffolds = HashSet::new();
-    let mut pos = (0, 0);
+    let instr = "A,A,B,C,B,C,B,C,B,A\nR,6,L,12,R,6\nL,12,R,6,L,8,L,12\nR,12,L,10,L,10\nn\n";
+    let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
+    let mut instr_idx = 0;
+    let mut last = 0;
+    let mut s = String::new();
 
+    data[0] = 2;
     let mut prog = Program::new(data);
     prog.start();
     while prog.running {
         let state = prog.state();
         match state {
             State::Input => {
-                /*
-                let mut user_input = String::new();
-                std::io::stdin().read_line(&mut user_input).unwrap();
-                let in_ = user_input.trim_end();
-                let c = in_.chars().next().unwrap();
-                let in_ = match c {
-                    'n' => 1,
-                    's' => 2,
-                    'w' => 3,
-                    'e' => 4,
-                    _ => panic!("bad input"),
-                };
-                last_input = in_;
-                */
-                prog.input(0);
+                prog.input(instr[instr_idx] as isize);
+                instr_idx += 1;
             }
             State::Output => {
                 if let Some(output) = prog.output()  {
                     match output {
                         10 => {
-                            pos = (0, pos.1 + 1);
-                        },
-                        _ => {
-                            let c = char::from(output as u8);
-                            grid.insert(pos, c);
-                            if c != '.' {
-                                scaffolds.insert(pos);
+                            s.push('\n');
+                            if last == 10 {
+                                print!("{}", s);
+                                s.clear();
+                                use std::{thread, time};
+                                let t = time::Duration::from_millis(70);
+                                thread::sleep(t);
+                                //print!("{}[2J", 27 as char);
                             }
-                            pos = (pos.0 + 1, pos.1);
-                        }
+                        },
+                        c if c < 127 => {
+                            let c = char::from(output as u8);
+                            s.push(c);
+                        },
+                        _ => println!("\nResult: {}", output),
                     }
+                    last = output;
             }
             }
             State::Halt => {
@@ -65,30 +76,6 @@ fn main() {
             }
         }
     }
-
-    let mut result = 0;
-    let mut intersects = HashSet::new();
-    for p in scaffolds.iter() {
-        if p.0 == 0 || p.1 == 0 {
-            continue;
-        }
-        if !scaffolds.contains(&(p.0 - 1, p.1)) {
-            continue;
-        }
-        if !scaffolds.contains(&(p.0 + 1, p.1)) {
-            continue;
-        }
-        if !scaffolds.contains(&(p.0, p.1 - 1)) {
-            continue;
-        }
-        if !scaffolds.contains(&(p.0, p.1 + 1)) {
-            continue;
-        }
-        intersects.insert(p);
-        result += p.0 * p.1;
-    }
-    println!("{:?}", scaffolds);
-    println!("{}", result);
 }
 
 #[derive(Debug, Clone)]
