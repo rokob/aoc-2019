@@ -17,49 +17,120 @@ fn main() {
         }
     }
 
-    let mut instr = Vec::new();
-    for x in 0..50 {
-        for y in 0..50 {
-            instr.push(x); instr.push(y);
+    let mut y = 100;
+    let mut last_y = y;
+    loop {
+        let (_row, beam_count, _beam_start) = get_row(data.clone(), y);
+        if beam_count < 300 {
+            last_y = y;
+            y *= 2;
+        } else {
+            break;
         }
     }
-    let mut instr_idx = 0;
-    let mut grid = [[0;50];50];
+    let mut lo = last_y;
+    let mut hi = y;
+    loop {
+        if lo >= hi {
+            break;
+        }
+        let mid = (lo + hi) / 2;
+        let (_row_0, count_0, start_0) = get_row(data.clone(), mid - 99);
+        let (_row_1, _count_1, start_1) = get_row(data.clone(), mid);
+        if start_1 + 99 < start_0 + count_0 as isize {
+            // good
+            hi = mid;
+        } else {
+            // bad
+            lo = mid + 1;
+        }
+    }
+    let (_, _count, start) = get_row(data.clone(), hi);
+    println!("{}", 10000 * start + hi - 99);
+    //print_square(data.clone(), hi, start as usize, (hi - 99) as isize);
+}
 
-    for _ in 0..50*50 {
-    let mut prog = Program::new(data.clone());
-    prog.start();
-    while prog.running {
-        let state = prog.state();
-        match state {
-            State::Input => {
-                prog.input(instr[instr_idx] as isize);
-                instr_idx += 1;
+#[allow(dead_code)]
+fn print_square(data: Vec<isize>, y: isize, sqx: usize, sqy: isize) {
+    let (y_row, count, start) = get_row(data.clone(), y);
+    let a = start as usize - 5;
+    let b = start as usize + count + 1;
+    for i in y - 99..y {
+        let (row, _count, _start) = get_row(data.clone(), i);
+        for k in a..b {
+            if k < row.len() {
+                if i >= sqy && k >= sqx && row[k] == 1 && k <= sqx + 99 {
+                    print!("O");
+                } else {
+                    if row[k] == 0 {
+                        print!(".")
+                    } else {
+                        print!("#")
+                    };
+                }
+            } else {
+                print!(".");
             }
-            State::Output => {
-                if let Some(output) = prog.output()  {
-                    let x = instr[instr_idx-2];
-                    let y = instr[instr_idx-1];
-                    grid[y][x] = output;
+        }
+        println!("");
+    }
+    for k in a..b {
+        if k < y_row.len() {
+            if y >= sqy && k >= sqx && y_row[k] == 1 && k <= sqx + 99 {
+                print!("O");
+            } else {
+                if y_row[k] == 0 {
+                    print!(".")
+                } else {
+                    print!("#")
+                };
+            }
+        } else {
+            print!(".");
+        }
+    }
+    println!("");
+}
+
+fn get_row(data: Vec<isize>, y: isize) -> (Vec<isize>, usize, isize) {
+    let mut x = 0;
+    let mut result = Vec::new();
+    let mut seen_beam = false;
+    let mut beam_count = 0;
+    let mut beam_start = 0;
+    loop {
+        let mut in_ = x;
+        let mut prog = Program::new(data.clone());
+        prog.start();
+        while prog.running {
+            let state = prog.state();
+            match state {
+                State::Input => {
+                    prog.input(in_);
+                    in_ = y;
+                }
+                State::Output => {
+                    if let Some(output) = prog.output() {
+                        result.push(output);
+                        if seen_beam && output == 0 {
+                            return (result, beam_count, beam_start);
+                        }
+                        if output == 1 {
+                            if !seen_beam {
+                                seen_beam = true;
+                                beam_start = x;
+                            }
+                            beam_count += 1;
+                        }
+                    }
+                }
+                State::Halt => {
+                    break;
                 }
             }
-            State::Halt => {
-                break;
-            }
         }
+        x += 1;
     }
-    }
-
-    let mut result = 0;
-    for x in 0..50 {
-        for y in 0..50 {
-            if grid[y][x] == 1 {
-                result += 1;
-            }
-        }
-    }
-
-    println!("{}", result);
 }
 
 #[derive(Debug, Clone)]
