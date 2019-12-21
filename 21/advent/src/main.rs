@@ -17,76 +17,44 @@ fn main() {
         }
     }
 
-    let mut y = 100;
-    let mut last_y = y;
-    loop {
-        let (_row, beam_count, _beam_start) = get_row(data.clone(), y);
-        if beam_count < 300 {
-            last_y = y;
-            y *= 2;
-        } else {
-            break;
-        }
-    }
-    let mut lo = last_y;
-    let mut hi = y;
-    loop {
-        if lo >= hi {
-            break;
-        }
-        let mid = (lo + hi) / 2;
-        let (_row_0, count_0, start_0) = get_row(data.clone(), mid - 99);
-        let (_row_1, _count_1, start_1) = get_row(data.clone(), mid);
-        if start_1 + 99 < start_0 + count_0 as isize {
-            // good
-            hi = mid;
-        } else {
-            // bad
-            lo = mid + 1;
-        }
-    }
-    let (_, _count, start) = get_row(data.clone(), hi);
-    println!("{}", 10000 * start + hi - 99);
-}
+    let instr = "NOT C T\nOR T J\nNOT B T\nOR T J\nNOT A T\nOR T J\nAND D J\nWALK\n";
+    let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
+    let mut instr_idx = 0;
+    let mut last = 0;
+    let mut s = String::new();
 
-fn get_row(data: Vec<isize>, y: isize) -> (Vec<isize>, usize, isize) {
-    let mut x = 0;
-    let mut result = Vec::new();
-    let mut seen_beam = false;
-    let mut beam_count = 0;
-    let mut beam_start = 0;
-    loop {
-        let mut in_ = x;
-        let mut prog = Program::new(data.clone());
-        prog.start();
-        while prog.running {
-            let state = prog.state();
-            match state {
-                State::Input => {
-                    prog.input(in_);
-                    in_ = y;
-                }
-                State::Output => {
-                    if let Some(output) = prog.output() {
-                        result.push(output);
-                        if seen_beam && output == 0 {
-                            return (result, beam_count, beam_start);
-                        }
-                        if output == 1 {
-                            if !seen_beam {
-                                seen_beam = true;
-                                beam_start = x;
+    let mut prog = Program::new(data);
+    prog.start();
+    while prog.running {
+        let state = prog.state();
+        match state {
+            State::Input => {
+                prog.input(instr[instr_idx] as isize);
+                instr_idx += 1;
+            }
+            State::Output => {
+                if let Some(output) = prog.output()  {
+                    match output {
+                        10 => {
+                            s.push('\n');
+                            if last == 10 {
+                                print!("{}", s);
+                                s.clear();
                             }
-                            beam_count += 1;
-                        }
+                        },
+                        c if c < 127 => {
+                            let c = char::from(output as u8);
+                            s.push(c);
+                        },
+                        _ => println!("\nResult: {}", output),
                     }
-                }
-                State::Halt => {
-                    break;
-                }
+                    last = output;
+            }
+            }
+            State::Halt => {
+                break;
             }
         }
-        x += 1;
     }
 }
 
