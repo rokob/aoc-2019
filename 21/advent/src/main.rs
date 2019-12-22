@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 enum State {
     Input,
     Output,
+    Running,
     Halt,
 }
 
@@ -17,7 +18,8 @@ fn main() {
         }
     }
 
-    let instr = "NOT C T\nOR T J\nNOT B T\nOR T J\nNOT A T\nOR T J\nAND D J\nWALK\n";
+        
+    let instr = "NOT C J\nNOT E T\nAND T J\nNOT G T\nAND T J\nNOT I T\nAND T J\nNOT A T\nOR T J\nNOT B T\nNOT T T\nAND F T\nAND H T\nOR T J\nAND D J\nRUN\n";
     let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
     let mut instr_idx = 0;
     let mut last = 0;
@@ -25,9 +27,10 @@ fn main() {
 
     let mut prog = Program::new(data);
     prog.start();
-    while prog.running {
+    loop {
         let state = prog.state();
         match state {
+            State::Running => prog.run(),
             State::Input => {
                 prog.input(instr[instr_idx] as isize);
                 instr_idx += 1;
@@ -94,7 +97,7 @@ impl Program {
         if self.has_output {
             return State::Output;
         }
-        panic!("bad state");
+        State::Running
     }
 
     fn input(&mut self, in_: isize) {
@@ -106,7 +109,6 @@ impl Program {
         self.data[xi] = in_;
         self.ip += 2;
         self.needs_input = false;
-        self.run();
     }
 
     fn output(&mut self) -> Option<isize> {
@@ -118,7 +120,6 @@ impl Program {
         let x = self.data[xi];
         self.has_output = false;
         self.ip += 2;
-        self.run();
         Some(x)
     }
 
@@ -187,7 +188,6 @@ impl Program {
             }
             _ => panic!("unk::{}", inst),
         }
-        self.run();
     }
 
     #[inline]
