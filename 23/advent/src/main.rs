@@ -1,6 +1,10 @@
 #[allow(unused_imports)]
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::sync::mpsc::{channel, Sender};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
     Input,
@@ -18,47 +22,96 @@ fn main() {
         }
     }
 
-        
-    let instr = "";
-    let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
-    let mut instr_idx = 0;
-    let mut last = 0;
-    let mut s = String::new();
-
-    let mut prog = Program::new(data);
-    prog.start();
+    let mailbox: Arc<Mutex<HashMap<usize, VecDeque<(isize, isize)>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let (tx, rx) = channel();
+    let prog = Program::new(data);
+    for i in 0..50 {
+        let (mailbox, tx) = (Arc::clone(&mailbox), tx.clone());
+        let mut program = prog.clone();
+        program.start();
+        thread::spawn(move ||  {
+            let mut nic = Nic {
+                id: i,
+                program,
+                mailbox,
+                tx,
+            };
+            let mut given_id = false;
     loop {
-        let state = prog.state();
+        let state = nic.program.state();
         match state {
-            State::Running => prog.run(),
+            State::Running => nic.program.run(),
             State::Input => {
-                prog.input(instr[instr_idx] as isize);
-                instr_idx += 1;
+                if !given_id {
+                    given_id = true;
+                    nic.program.input(nic.id as isize);
+                    continue;
+                }
+                let mut mailbox = nic.mailbox.lock().unwrap();
+                let e = mailbox.entry(nic.id).or_insert(VecDeque::new());
+                if e.is_empty() {
+                    nic.program.input(-1 as isize);
+                } else {
+                    let in_ = e.pop_front().unwrap();
+                    nic.program.input(in_.0);
+                    loop {
+                        let state_ = nic.program.state();
+                        match state_ {
+                            State::Running => nic.program.run(),
+                            State::Input => {
+                                nic.program.input(in_.1);
+                                break;
+                            },
+                            State::Output | State::Halt => panic!("expected second input"),
+                        }
+                    }
+                }
             }
             State::Output => {
-                if let Some(output) = prog.output()  {
-                    match output {
-                        10 => {
-                            s.push('\n');
-                            if last == 10 {
-                                print!("{}", s);
-                                s.clear();
-                            }
+                let mut x = 0;
+                let mut has_x = false;
+                let y: isize;
+                let dest = nic.program.output().unwrap();
+                loop {
+                    let state_ = nic.program.state();
+                    match state_ {
+                        State::Running => nic.program.run(),
+                        State::Output => {
+                            if !has_x {
+                                x = nic.program.output().unwrap();
+                                has_x = true;
+                                continue;
+                            } 
+                            y = nic.program.output().unwrap();
+                            break;
                         },
-                        c if c < 127 => {
-                            let c = char::from(output as u8);
-                            s.push(c);
-                        },
-                        _ => println!("\nResult: {}", output),
+                        State::Input | State::Halt => panic!("expected rest of output"),
                     }
-                    last = output;
-            }
+                }
+                if dest == 255 {
+                    nic.tx.send(y).unwrap();
+                } else {
+                    let mut mailbox = nic.mailbox.lock().unwrap();
+                    let e = mailbox.entry(dest as usize).or_insert(VecDeque::new());
+                    e.push_back((x, y));
+                }
             }
             State::Halt => {
                 break;
             }
         }
     }
+        });
+    }
+
+    println!("{:?}", rx.recv().unwrap());
+}
+
+struct Nic {
+    program: Program,
+    id: usize,
+    mailbox: Arc<Mutex<HashMap<usize, VecDeque<(isize, isize)>>>>,
+    tx: Sender<isize>,
 }
 
 #[derive(Debug, Clone)]
