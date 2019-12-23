@@ -18,6 +18,8 @@ fn is_seen(i: u32, key: char) -> bool {
     i & (1 << bit) > 0
 }
 
+const ROBOTS: usize = 4;
+
                       //abcdefghijklmnopqrstuvwxyz
 const ALL_KEYS: u32 = 0b11111111111111111111111111;
 
@@ -27,13 +29,15 @@ fn main() {
     let mut doors = HashMap::new();
     let mut y_max = 0;
     let mut x_max = 0;
-    let mut start = (0, 0, 0);
+    let mut starts = [(0, 0, 0); ROBOTS];
+    let mut start_idx = 0;
     for (y, line) in input.lines().enumerate() {
         for (x, c) in line.chars().enumerate() {
             match c {
                 '@' => {
                     tokens.insert((x,y), Token::Entrance);
-                    start = (x, y, 0);
+                    starts[start_idx] = (x, y, 0);
+                    start_idx += 1;
                 },
                 '.' => {
                 },
@@ -56,22 +60,35 @@ fn main() {
         y_max = if y > y_max { y } else { y_max };
     }
 
-    /*
-    for y in 0..=y_max {
-        for x in 0..=x_max {
-            match tokens.get(&(x,y)) {
-                Some(Token::Entrance) => print!("@"),
-                Some(Token::Wall) => print!("#"),
-                Some(Token::Door(c)) => print!("{}", c.to_ascii_uppercase()),
-                Some(Token::Key(c)) => print!("{}", c),
-                None => print!("."),
-            }
+    for ((x, y), token) in tokens.iter() {
+        let q = if *x <= starts[0].0 && *y <= starts[0].1 {
+            0
+        } else if *x >= starts[1].0 && *y <= starts[1].1 {
+            1
+        } else if *x <= starts[2].0 && *y >= starts[2].1 {
+            2
+        } else {
+            3
+        };
+        match token {
+            Token::Key(c) => {
+                for i in 0..ROBOTS {
+                    if i == q {
+                        continue;
+                    }
+                    starts[i].2 = mark_seen(starts[i].2, *c);
+                }
+            },
+            _ => {},
         }
-        println!("");
     }
-    */
-    let result = shortest_path(&tokens, start);
-    println!("{}", result);
+
+    let mut final_result = 0;
+    for start in starts.iter() {
+        let result = shortest_path(&tokens, *start);
+        final_result += result;
+    }
+    println!("{}", final_result);
 }
 
 fn shortest_path(tokens: &HashMap<(usize, usize), Token>, start: (usize, usize, u32)) -> usize {
