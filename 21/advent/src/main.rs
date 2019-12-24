@@ -20,49 +20,15 @@ fn main() {
         }
     }
 
-        
+    let instr = "NOT A J\nAND D J\nNOT B T\nAND D T\nAND H T\nOR T J\nNOT C T\nAND D T\nAND E T\nOR T J\nNOT C T\nAND D T\nAND H T\nOR T J\nRUN\n";
+    let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
     let prog = Program::new(data);
-    let all_instr = generate();
-    'foo: for a in all_instr.iter() {
-        for b in all_instr.iter() {
-            for c in all_instr.iter() {
-                for d in all_instr.iter() {
-                    let mut instr = Vec::new();
-                    instr.append(&mut a.clone());
-                    instr.append(&mut b.clone());
-                    instr.append(&mut c.clone());
-                    instr.append(&mut d.clone());
-                    instr.append(&mut "WALK\n".chars().map(|c| c as u32).collect::<Vec<_>>());
-                    println!("{:?}", instr);
-                    let (win, result) = run(instr, prog.clone());
-                    if win {
-                        println!("result: {}", result);
-                        break 'foo;
-                    }
-                }
-            }
-        }
+    let (win, result) = run(instr, prog);
+    if win {
+        println!("result: {}", result);
+    } else {
+        println!("fail!!!");
     }
-}
-
-fn generate() -> Vec<Vec<u32>> {
-    let mut result = Vec::new();
-    for instr in ["NOT", "OR", "AND"].iter() {
-        //for read in ["A", "B", "C", "D", "E", "F", "G", "H", "I", "T"].iter() {
-        for read in ["A", "B", "C", "D"].iter() {
-            for write in ["T", "J"].iter() {
-                let mut t = Vec::new();
-                t.append(&mut instr.chars().map(|c| c as u32).collect::<Vec<_>>());
-                t.push(32);
-                t.append(&mut read.chars().map(|c| c as u32).collect::<Vec<_>>());
-                t.push(32);
-                t.append(&mut write.chars().map(|c| c as u32).collect::<Vec<_>>());
-                t.push(10);
-                result.push(t);
-            }
-        }
-    }
-    result
 }
 
 fn run(instr: Vec<u32>, mut prog: Program) -> (bool, isize) {
