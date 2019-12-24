@@ -9,6 +9,8 @@ enum State {
     Halt,
 }
 
+const DEBUG: bool = false;
+
 fn main() {
     let input = include_str!("../input.txt");
     let mut data = Vec::new();
@@ -19,13 +21,55 @@ fn main() {
     }
 
         
-    let instr = "NOT C J\nNOT E T\nAND T J\nNOT G T\nAND T J\nNOT I T\nAND T J\nNOT A T\nOR T J\nNOT B T\nNOT T T\nAND F T\nAND H T\nOR T J\nAND D J\nRUN\n";
-    let instr = instr.chars().map(|c| c as u32).collect::<Vec<_>>();
+    let prog = Program::new(data);
+    let all_instr = generate();
+    'foo: for a in all_instr.iter() {
+        for b in all_instr.iter() {
+            for c in all_instr.iter() {
+                for d in all_instr.iter() {
+                    let mut instr = Vec::new();
+                    instr.append(&mut a.clone());
+                    instr.append(&mut b.clone());
+                    instr.append(&mut c.clone());
+                    instr.append(&mut d.clone());
+                    instr.append(&mut "WALK\n".chars().map(|c| c as u32).collect::<Vec<_>>());
+                    println!("{:?}", instr);
+                    let (win, result) = run(instr, prog.clone());
+                    if win {
+                        println!("result: {}", result);
+                        break 'foo;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn generate() -> Vec<Vec<u32>> {
+    let mut result = Vec::new();
+    for instr in ["NOT", "OR", "AND"].iter() {
+        //for read in ["A", "B", "C", "D", "E", "F", "G", "H", "I", "T"].iter() {
+        for read in ["A", "B", "C", "D"].iter() {
+            for write in ["T", "J"].iter() {
+                let mut t = Vec::new();
+                t.append(&mut instr.chars().map(|c| c as u32).collect::<Vec<_>>());
+                t.push(32);
+                t.append(&mut read.chars().map(|c| c as u32).collect::<Vec<_>>());
+                t.push(32);
+                t.append(&mut write.chars().map(|c| c as u32).collect::<Vec<_>>());
+                t.push(10);
+                result.push(t);
+            }
+        }
+    }
+    result
+}
+
+fn run(instr: Vec<u32>, mut prog: Program) -> (bool, isize) {
     let mut instr_idx = 0;
     let mut last = 0;
     let mut s = String::new();
 
-    let mut prog = Program::new(data);
     prog.start();
     loop {
         let state = prog.state();
@@ -39,17 +83,21 @@ fn main() {
                 if let Some(output) = prog.output()  {
                     match output {
                         10 => {
+                            if DEBUG {
                             s.push('\n');
                             if last == 10 {
                                 print!("{}", s);
                                 s.clear();
                             }
+                            }
                         },
                         c if c < 127 => {
+                            if DEBUG {
                             let c = char::from(output as u8);
                             s.push(c);
+                            }
                         },
-                        _ => println!("\nResult: {}", output),
+                        _ => return (true, output),
                     }
                     last = output;
             }
@@ -59,6 +107,7 @@ fn main() {
             }
         }
     }
+    (false, 0)
 }
 
 #[derive(Debug, Clone)]
