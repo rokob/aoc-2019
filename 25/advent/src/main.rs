@@ -1,10 +1,6 @@
 #[allow(unused_imports)]
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, Mutex};
-use std::{thread, time};
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
     Input,
@@ -13,6 +9,14 @@ enum State {
     Halt,
 }
 
+/*
+ * Manually played, this was the final inv that makes it work:
+ * Items in your inventory:
+    - prime number
+    - asterisk
+    - sand
+    - tambourine
+*/
 fn main() {
     let input = include_str!("../input.txt");
     let mut data = Vec::new();
@@ -22,137 +26,128 @@ fn main() {
         }
     }
 
-    let mailbox: Arc<Mutex<HashMap<usize, VecDeque<(isize, isize)>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    let (tx, rx) = channel();
-    let (nat_send, nat_recv) = channel();
-    let prog = Program::new(data);
-    let nat_mailbox = Arc::clone(&mailbox);
-    let nat_nat_send = nat_send.clone();
+    let mut grid = HashMap::new();
 
-    thread::spawn(move || {
-        let mailbox = nat_mailbox;
-        let nat_send = nat_nat_send;
-        loop {
-            if let Ok(v) = rx.recv() {
-                let sleep_time = time::Duration::from_millis(200);
-                thread::sleep(sleep_time);
-                let mut m = mailbox.lock().unwrap();
-                for (_, values) in m.iter() {
-                    if !values.is_empty() {
-                        continue;
-                    }
-                }
-                let mut last = v;
-                for val in rx.try_iter() {
-                    last = val;
-                }
-                let e = m.entry(0).or_insert(VecDeque::new());
-                e.push_back(last);
-                nat_send.send(last).unwrap();
-            }
-        }
-    });
-    for i in 0..50 {
-        let (mailbox, tx) = (Arc::clone(&mailbox), tx.clone());
-        let mut program = prog.clone();
-        program.start();
-        thread::spawn(move || {
-            let mut nic = Nic {
-                id: i,
-                program,
-                mailbox,
-                tx,
-            };
-            let mut given_id = false;
+    let mut pos: (isize, isize) = (0, 0);
+    let mut instr_idx = 0;
+    let mut input_data = Vec::new();
+    let mut in_door_output = false;
+    let mut s = String::new();
+    let mut prog = Program::new(data);
+        prog.start();
             loop {
-                let state = nic.program.state();
+                let state = prog.state();
                 match state {
-                    State::Running => nic.program.run(),
+                    State::Running => prog.run(),
                     State::Input => {
-                        if !given_id {
-                            given_id = true;
-                            nic.program.input(nic.id as isize);
-                            continue;
-                        }
-                        let mut mailbox = nic.mailbox.lock().unwrap();
-                        let e = mailbox.entry(nic.id).or_insert(VecDeque::new());
-                        if e.is_empty() {
-                            nic.program.input(-1 as isize);
-                        } else {
-                            let in_ = e.pop_front().unwrap();
-                            nic.program.input(in_.0);
-                            loop {
-                                let state_ = nic.program.state();
-                                match state_ {
-                                    State::Running => nic.program.run(),
-                                    State::Input => {
-                                        nic.program.input(in_.1);
-                                        break;
-                                    }
-                                    State::Output | State::Halt => panic!("expected second input"),
+                        if instr_idx < input_data.len() {
+                            prog.input(input_data[instr_idx] as isize);
+                            instr_idx += 1;
+                            if instr_idx == input_data.len() {
+                                if input_data[0] == ('n' as u32) {
+                                    pos = (pos.0, pos.1 - 1);
+                                } else if input_data[0] == ('s' as u32) {
+                                    pos = (pos.0, pos.1 + 1);
+                                } else if input_data[0] == ('e' as u32) {
+                                    pos = (pos.0 + 1, pos.1);
+                                } else if input_data[0] == ('w' as u32) {
+                                    pos = (pos.0 - 1, pos.1);
                                 }
                             }
+                        } else {
+                            //print_grid(&grid, pos);
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).unwrap();
+                        let in_ = input.trim_end();
+                        input_data = in_.chars().map(|c| c as u32).collect::<Vec<_>>();
+                        input_data.push(10);
+                        prog.input(input_data[0] as isize);
+                        instr_idx = 1;
                         }
                     }
-                    State::Output => {
-                        let mut x = 0;
-                        let mut has_x = false;
-                        let y: isize;
-                        let dest = nic.program.output().unwrap();
-                        loop {
-                            let state_ = nic.program.state();
-                            match state_ {
-                                State::Running => nic.program.run(),
-                                State::Output => {
-                                    if !has_x {
-                                        x = nic.program.output().unwrap();
-                                        has_x = true;
-                                        continue;
+                    State::Output =>  {
+                if let Some(output) = prog.output()  {
+                    match output {
+                        10 => {
+                            if &s[..] == "Doors here lead:" {
+                                in_door_output = true;
+                                grid.insert(pos, [1, 0, 0, 0, 0]);
+                            } else if in_door_output {
+                                let e = grid.entry(pos).or_insert([0;5]);
+                                    match &s[..] {
+                                        "- north" => {
+                                            e[1] = 1;
+                                            grid.entry((pos.0, pos.1 - 1)).or_insert([0; 5]);
+                                        }
+                                        "- east" => {
+                                            e[2] = 1;
+                                            grid.entry((pos.0 + 1, pos.1)).or_insert([0; 5]);
+                                        },
+                                        "- south" => {
+                                            e[3] = 1;
+                                            grid.entry((pos.0, pos.1 + 1)).or_insert([0; 5]);
+                                        }
+                                        "- west" => {
+                                            e[4] = 1;
+                                            grid.entry((pos.0 - 1, pos.1)).or_insert([0; 5]);
+                                        }
+                                        _ => {
+                                            in_door_output = false;
+                                        }
                                     }
-                                    y = nic.program.output().unwrap();
-                                    break;
-                                }
-                                State::Input | State::Halt => panic!("expected rest of output"),
                             }
-                        }
-                        if dest == 255 {
-                            nic.tx.send((x, y)).unwrap();
-                        } else {
-                            let mut mailbox = nic.mailbox.lock().unwrap();
-                            let e = mailbox.entry(dest as usize).or_insert(VecDeque::new());
-                            e.push_back((x, y));
-                        }
+                            s.push('\n');
+                            print!("{}", s);
+                            s.clear();
+                        },
+                        c if c < 127 => {
+                            let c = char::from(output as u8);
+                            s.push(c);
+                        },
+                        _ => panic!("bad output: {}", output),
+                    }
+                }
                     }
                     State::Halt => {
                         break;
                     }
                 }
             }
-        });
+}
+
+fn print_grid(grid: &HashMap<(isize, isize), [u32;5]>, pos: (isize, isize)) {
+    let mut minx = 0;
+    let mut miny = 0;
+    let mut maxx = 0;
+    let mut maxy = 0;
+    for (&(x, y), _) in grid.iter() {
+        if x < minx { minx = x; }
+        if y < miny { miny = y; }
+        if x > maxx { maxx = x; }
+        if y > maxy { maxy = y; }
     }
 
-    let mut last = (0, 0);
-    for val in nat_recv.iter() {
-        println!("Got: {:?}", val);
-        if val.1 == last.1 {
-            if val.1 != -1 {
-                break;
-            } else {
-                println!("saw -1 twice");
+    for y in miny..=maxy {
+        for x in minx..=maxx {
+            match grid.get(&(x, y)) {
+                Some(data) => {
+                    if pos.0 == x && pos.1 == y {
+                        print!(" @ ");
+                    } else if data[0] == 1 {
+                        print!(" X ");
+                    } else {
+                        print!(" _ ");
+                    }
+                },
+                None => {
+                    print!(" . ");
+                }
             }
         }
-        last = val;
+        println!("");
     }
-    println!("Seen twice: {}", last.1);
 }
 
-struct Nic {
-    program: Program,
-    id: usize,
-    mailbox: Arc<Mutex<HashMap<usize, VecDeque<(isize, isize)>>>>,
-    tx: Sender<(isize, isize)>,
-}
 
 #[derive(Debug, Clone)]
 struct Program {
